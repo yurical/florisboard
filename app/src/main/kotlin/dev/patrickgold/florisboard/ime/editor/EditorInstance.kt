@@ -35,6 +35,7 @@ import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.composing.Appender
 import dev.patrickgold.florisboard.ime.text.composing.Composer
+import dev.patrickgold.florisboard.ime.text.composing.HangulUnicode
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
@@ -337,6 +338,20 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
      */
     fun deleteBackwards(unit: OperationUnit): Boolean {
         val content = activeContent
+
+        if (unit == OperationUnit.CHARACTERS && content.selection.isCursorMode) {
+            val composer = determineComposer(subtypeManager.activeSubtype.composer)
+            if (composer is HangulUnicode) {
+                composer.getBackspaceAction(content.textBeforeSelection)?.let { (delCount, newText) ->
+                    autoSpace.setInactive()
+                    phantomSpace.setInactive()
+                    return replaceTextBeforeCursor(delCount, newText).also {
+                        if (it) deleteMoveLastCommitPosition()
+                    }
+                }
+            }
+        }
+
         if (unit == OperationUnit.CHARACTERS) {
             if (phantomSpace.isActive && content.currentWord.isValid && prefs.glide.immediateBackspaceDeletesWord.get()) {
                 return deleteBackwards(OperationUnit.WORDS)

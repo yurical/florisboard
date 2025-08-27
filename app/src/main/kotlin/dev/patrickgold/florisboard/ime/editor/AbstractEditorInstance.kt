@@ -218,6 +218,33 @@ abstract class AbstractEditorInstance(context: Context) {
         currentInputConnection()?.requestCursorUpdates(CursorUpdateNone)
     }
 
+    protected open fun replaceTextBeforeCursor(deleteCount: Int, newText: String): Boolean {
+        val ic = currentInputConnection() ?: return false
+        val content = activeContent
+        if (content.selection.isNotValid || content.selection.isSelectionMode || deleteCount < 1) {
+            return false
+        }
+        runBlocking {
+            ic.beginBatchEdit()
+            val selection = content.selection
+            val newSelection = EditorRange.cursor(selection.start - deleteCount + newText.length)
+            val newContent = content.generateCopy(
+                selection = newSelection,
+                textBeforeSelection = buildString {
+                    append(content.textBeforeSelection.dropLast(deleteCount))
+                    append(newText)
+                },
+                selectedText = "",
+            )
+            expectedContentQueue.push(newContent)
+            ic.setComposingRegion(selection.start - deleteCount, selection.start)
+            ic.setComposingText(newText, 1)
+            ic.setComposingRegion(newContent.composing)
+            ic.endBatchEdit()
+        }
+        return true
+    }
+
     protected open fun reset() {
         activeInfo = FlorisEditorInfo.Unspecified
         activeCursorCapsMode = InputAttributes.CapsMode.NONE

@@ -123,4 +123,46 @@ class HangulUnicode : Composer {
 
         return 0 to toInsert
     }
+
+    fun getBackspaceAction(precedingText: String): Pair<Int, String>? {
+        if (precedingText.isEmpty()) {
+            return null
+        }
+        val lastChar = precedingText.last()
+        val lastOrd = lastChar.code
+
+        if (lastOrd in 44032..55203) {
+            val (ini, med, fin) = syllableBlocks(lastOrd)
+
+            // if there is a final
+            if (fin > 0) {
+                val finalChar = finals[fin]
+                // if the final is a compound consonant, split it
+                if (finalChar in finalCompRev) {
+                    val newFinalChar = finalCompRev.getValue(finalChar)[0]
+                    val newFinIndex = finals.indexOf(newFinalChar)
+                    val newSyllable = syllable(ini, med, newFinIndex)
+                    return 1 to newSyllable.toString()
+                } else {
+                    // if the final is simple, remove it
+                    val newSyllable = syllable(ini, med, 0)
+                    return 1 to newSyllable.toString()
+                }
+            }
+
+            // if there is no final
+            val medialChar = medials[med]
+            // if the medial is a compound vowel, split it
+            if (medialChar in medialCompRev) {
+                val newMedialChar = medialCompRev.getValue(medialChar)[0]
+                val newSyllable = syllable(ini, medials.indexOf(newMedialChar), 0)
+                return 1 to newSyllable.toString()
+            } else {
+                // if the medial is simple, remove it leaving the initial
+                return 1 to initials[ini].toString()
+            }
+        }
+
+        return null
+    }
 }
